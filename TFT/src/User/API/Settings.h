@@ -33,11 +33,16 @@
 
 typedef enum
 {
-  SERIAL_TSC = 0,
-  LCD12864,
-  LCD2004,
+  MARLIN = 0,
+  SERIAL_TSC,
   MODE_COUNT
 }LCD_MODE;
+
+typedef enum
+{
+  LCD2004 = 0,
+  LCD12864
+}LCD_MARLIN_MODE;
 
 typedef struct
 {
@@ -62,14 +67,18 @@ typedef struct
   uint8_t  invert_axis[AXIS_NUM];
   uint8_t  move_speed;
   uint8_t  knob_led_color;
+  uint8_t  knob_led_idle;
   uint8_t  persistent_info;
   uint8_t  file_listmode;
+  uint8_t  ack_popup_type;
+  uint8_t  ack_buzzer;
 
   uint8_t  lcd_brightness;
   uint8_t  lcd_idle_brightness;
   uint8_t  lcd_idle_timer;
 
   uint8_t  serial_alwaysOn;
+  uint8_t  marlin_type;
   uint16_t marlin_mode_bg_color;
   uint16_t marlin_mode_font_color;
   uint8_t  marlin_mode_showtitle;
@@ -100,6 +109,7 @@ typedef struct
   uint8_t   ext_count;
   uint8_t   fan_count;
   uint8_t   auto_load_leveling;
+  uint8_t   autoLevelState;
   uint8_t   onboardSD;
   uint8_t   m27_refresh_time;
   uint8_t   m27_active;
@@ -153,6 +163,7 @@ typedef struct
   uint8_t EEPROM;
   uint8_t autoReportTemp;
   uint8_t autoLevel;
+  uint8_t enableubl;
   uint8_t zProbe;
   uint8_t levelingData;
   uint8_t softwarePower;

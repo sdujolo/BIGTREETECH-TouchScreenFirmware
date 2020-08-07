@@ -2,8 +2,8 @@
 #include "includes.h"
 
 
-QUEUE infoCmd;       //
-QUEUE infoCacheCmd;  // Only when heatHasWaiting() is false the cmd in this cache will move to infoCmd queue.
+GCODE_QUEUE infoCmd;       //
+GCODE_QUEUE infoCacheCmd;  // Only when heatHasWaiting() is false the cmd in this cache will move to infoCmd queue.
 
 static u8 cmd_index=0;
 
@@ -47,7 +47,7 @@ bool storeCmd(const char * format,...)
 {
   if (strlen(format) == 0) return false;
 
-  QUEUE *pQueue = &infoCmd;
+  GCODE_QUEUE *pQueue = &infoCmd;
 
   if (pQueue->count >= CMD_MAX_LIST)
   {
@@ -73,7 +73,7 @@ void mustStoreCmd(const char * format,...)
 {
   if (strlen(format) == 0) return;
 
-  QUEUE *pQueue = &infoCmd;
+  GCODE_QUEUE *pQueue = &infoCmd;
 
   if(pQueue->count >= CMD_MAX_LIST) reminderMessage(LABEL_BUSY, STATUS_BUSY);
 
@@ -98,22 +98,21 @@ void mustStoreScript(const char * format,...)
 {
   if (strlen(format) == 0) return;
 
-  uint16_t i = 0;
   char script[256];
-  char *p = script;
   my_va_list ap;
   my_va_start(ap,format);
   my_vsprintf(script, format, ap);
   my_va_end(ap);
 
+  char *p = script;
+  uint16_t i = 0;
+  char cmd[CMD_MAX_CHAR];
   for (;;) {
     char c = *p++;
     if (!c) return;
-    char cmd[CMD_MAX_CHAR];
-    if (c != '\n') {
-      cmd[i++] = c;
-    }
-    else {
+    cmd[i++] = c;
+
+    if (c == '\n') {
       cmd[i] = 0;
       mustStoreCmd("%s", cmd);
       i = 0;
@@ -126,7 +125,7 @@ void mustStoreScript(const char * format,...)
 bool storeCmdFromUART(uint8_t port, const char * gcode)
 {
   if (strlen(gcode) == 0) return false;
-  QUEUE *pQueue = &infoCmd;
+  GCODE_QUEUE *pQueue = &infoCmd;
 
   if (pQueue->count >= CMD_MAX_LIST)
   {
@@ -147,7 +146,7 @@ bool storeCmdFromUART(uint8_t port, const char * gcode)
 // this function is only for restore printing status after power failed.
 void mustStoreCacheCmd(const char * format,...)
 {
-  QUEUE *pQueue = &infoCacheCmd;
+  GCODE_QUEUE *pQueue = &infoCacheCmd;
 
   if(pQueue->count == CMD_MAX_LIST) reminderMessage(LABEL_BUSY, STATUS_BUSY);
 
@@ -570,10 +569,10 @@ void sendQueueCmd(void)
               }
             }
             statusScreen_setMsg((u8 *)"M117", (u8 *)&message);
-            if (infoMenu.menu[infoMenu.cur] != menuStatus)
-            {
-              popupReminder(DIALOG_TYPE_INFO, (u8 *)"M117", (u8 *)&message);
-            }
+//            if (infoMenu.menu[infoMenu.cur] != menuStatus)
+//            {
+//              popupReminder(DIALOG_TYPE_INFO, (u8 *)"M117", (u8 *)&message);
+//            }
           }
           break;
 
@@ -658,16 +657,16 @@ void sendQueueCmd(void)
           if(cmd_seen('T')) setParameter(P_ACCELERATION,2,cmd_float());
           break;
         case 207: //M207 FW Retract
-          if(cmd_seen('F')) setParameter(P_FWRETRACT,0,cmd_float());
-          if(cmd_seen('S')) setParameter(P_FWRETRACT,1,cmd_float());
-          if(cmd_seen('W')) setParameter(P_FWRETRACT,2,cmd_float());
+          if(cmd_seen('S')) setParameter(P_FWRETRACT,0,cmd_float());
+          if(cmd_seen('W')) setParameter(P_FWRETRACT,1,cmd_float());
+          if(cmd_seen('F')) setParameter(P_FWRETRACT,2,cmd_float());
           if(cmd_seen('Z')) setParameter(P_FWRETRACT,3,cmd_float());
           break;
         case 208: //M208 FW Retract recover
-          if(cmd_seen('F')) setParameter(P_FWRECOVER,0,cmd_float());
-          if(cmd_seen('R')) setParameter(P_FWRECOVER,1,cmd_float());
-          if(cmd_seen('S')) setParameter(P_FWRECOVER,2,cmd_float());
-          if(cmd_seen('W')) setParameter(P_FWRECOVER,3,cmd_float());
+          if(cmd_seen('S')) setParameter(P_FWRECOVER,0,cmd_float());
+          if(cmd_seen('W')) setParameter(P_FWRECOVER,1,cmd_float());
+          if(cmd_seen('F')) setParameter(P_FWRECOVER,2,cmd_float());
+          if(cmd_seen('R')) setParameter(P_FWRECOVER,3,cmd_float());
           break;
         case 220: //M220
           if(cmd_seen('S'))
@@ -696,6 +695,17 @@ void sendQueueCmd(void)
             }
             break;
         #endif
+
+        case 420: //M420
+          if(cmd_seen('S')) {
+            infoSettings.autoLevelState = cmd_value();
+            setParameter(P_ABL_STATE,0,cmd_value());
+            if(cmd_value()==0) storeCmd("M117 ABL inactive\n");
+            else storeCmd("M117 ABL active\n");
+          }
+          if(cmd_seen('Z')) setParameter(P_ABL_STATE,1,cmd_float());
+        break;
+
         #ifdef NOZZLE_PAUSE_M601
           case 601: //M601 pause print
             if (isPrinting())
@@ -768,6 +778,22 @@ void sendQueueCmd(void)
         case 28: //G28
           coordinateSetKnown(true);
           babyStepReset();
+          storeCmd("M503 S0\n");
+          break;
+
+        case 29: //G29
+          if(ENABLE_UBL_VALUE > 0) {
+            if(cmd_seen('A')) {
+              infoSettings.autoLevelState = 1;
+              setParameter(P_ABL_STATE,0,1);
+              storeCmd("M117 UBL active\n");
+            }
+            if(cmd_seen('D')) {
+              infoSettings.autoLevelState = 0;
+              setParameter(P_ABL_STATE,0,0);
+              storeCmd("M117 UBL inactive\n");
+            }
+          }
           break;
 
         case 90: //G90
