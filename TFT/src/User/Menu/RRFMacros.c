@@ -10,16 +10,15 @@
 
 /************************************************************************/
 
-extern SCROLL titleScroll;
 extern const GUI_RECT titleRect;
 
-//Scan files in RRF
+// Scan files in RRF
 void scanInfoFilesFs(void)
 {
   clearInfoFile();
   char *data = request_M20_macros(infoFile.title);
 
-  data = strtok(data, "]"); // to end of Array
+  data = strtok(data, "]");  // to end of array
 
   char *line = strtok(strstr(data, "files\":[") + 8, ",");
   for (; line != NULL; line = strtok(NULL, ","))
@@ -30,12 +29,12 @@ void scanInfoFilesFs(void)
     {
       // FILE
       if (infoFile.fileCount >= FILE_NUM)
-        continue; // Gcode max number is FILE_NUM
+        continue;  // gcode max number is FILE_NUM
 
       char *Pstr_tmp = strrchr(line, '"');
       if (Pstr_tmp != NULL)
-        *Pstr_tmp = 0;               //remove right quote
-      Pstr_tmp = strrchr(line, '"'); //remove initial quote
+        *Pstr_tmp = 0;                // remove right quote
+      Pstr_tmp = strrchr(line, '"');  // remove initial quote
       if (Pstr_tmp == NULL)
         Pstr_tmp = line;
       else
@@ -53,7 +52,7 @@ void scanInfoFilesFs(void)
     {
       // DIRECTORY
       if (infoFile.folderCount >= FOLDER_NUM)
-        continue; // floder max number is FOLDER_NUM
+        continue;  // folder max number is FOLDER_NUM
 
       char *rest = pline + 1;
       char *folder = strtok_r(rest, "\"", &rest);
@@ -95,7 +94,7 @@ void runMacro(void)
   Delay_ms(500);
 }
 
-//Draw Macro file list
+// Draw Macro file list
 // update items in list mode
 void macroListDraw(LISTITEM * item, uint16_t index, uint8_t itemPos)
 {
@@ -137,7 +136,7 @@ void menuCallMacro(void)
   while (infoMenu.menu[infoMenu.cur] == menuCallMacro)
   {
     GUI_SetBkColor(infoSettings.title_bg_color);
-    Scroll_DispString(&titleScroll, LEFT);
+    Scroll_DispString(&scrollLine, LEFT);
     GUI_SetBkColor(infoSettings.bg_color);
 
     key_num = listViewGetSelectedIndex();
@@ -166,7 +165,7 @@ void menuCallMacro(void)
       default:
         if (key_num <= infoFile.fileCount + infoFile.folderCount)
         {
-          if (key_num < infoFile.folderCount) //folder
+          if (key_num < infoFile.folderCount)  // folder
           {
             if (EnterDir(infoFile.folder[key_num]) == false)
               break;
@@ -174,7 +173,7 @@ void menuCallMacro(void)
             update = 1;
             infoFile.cur_page = 0;
           }
-          else if (key_num < infoFile.fileCount + infoFile.folderCount) //gcode
+          else if (key_num < infoFile.fileCount + infoFile.folderCount)  // gcode
           {
             if (infoHost.connected != true)
               break;
@@ -199,7 +198,7 @@ void menuCallMacro(void)
                        &infoFile.cur_page, false, NULL, macroListDraw);
 
       // set scrolling title text
-      Scroll_CreatePara(&titleScroll, (uint8_t *)infoFile.title, &titleRect);
+      Scroll_CreatePara(&scrollLine, (uint8_t *)infoFile.title, &titleRect);
       GUI_SetBkColor(infoSettings.title_bg_color);
       GUI_ClearRect(0, 0, LCD_WIDTH, TITLE_END_Y);
       GUI_SetBkColor(infoSettings.bg_color);
