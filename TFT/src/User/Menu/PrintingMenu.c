@@ -253,7 +253,7 @@ static inline void toggleInfo(void)
     speedQuery();
 
     if (infoFile.source >= BOARD_SD)
-      coordinateQuery();
+      coordinateQuery(TOGGLE_TIME / 1000);
 
     if (!hasFilamentData && isPrinting())
       updatePrintUsedFilament();
@@ -361,7 +361,9 @@ void menuPrinting(void)
   uint32_t time = 0;
   HEATER nowHeat;
   float curLayer = 0;
-  float oldLayer = 0;
+  float usedLayer = 0;
+  float prevLayer = 0;
+  bool layerDrawEnabled = false;
   bool lastPause = isPaused();
   bool lastPrinting = isPrinting();
 
@@ -450,11 +452,23 @@ void menuPrinting(void)
 
     // Z_AXIS coordinate
     curLayer = ((infoFile.source >= BOARD_SD) ? coordinateGetAxisActual(Z_AXIS) : coordinateGetAxisTarget(Z_AXIS));
-    if (ABS(curLayer - oldLayer) >= LAYER_DELTA)
+    if (prevLayer != curLayer)
     {
-      oldLayer = curLayer;
-      RAPID_SERIAL_LOOP();  // perform backend printing loop before drawing to avoid printer idling
-      reDrawLayer(Z_ICON_POS);
+      if (ABS(curLayer - usedLayer) >= LAYER_DELTA)
+      {
+        layerDrawEnabled = true;
+      }
+      if (layerDrawEnabled == true)
+      {
+        usedLayer = curLayer;
+        RAPID_SERIAL_LOOP();  // perform backend printing loop before drawing to avoid printer idling
+        reDrawLayer(Z_ICON_POS);
+      }
+      if (ABS(curLayer - prevLayer) < LAYER_DELTA)
+      {
+        layerDrawEnabled = false;
+      }
+      prevLayer = curLayer;
     }
 
     // check change in speed or flow
@@ -488,7 +502,10 @@ void menuPrinting(void)
       case KEY_ICON_4:
         if (isPrinting())
         {
-          printPause(!isPaused(), PAUSE_NORMAL);
+          if (!isHostDialog())
+            printPause(!isPaused(), PAUSE_NORMAL);
+          else
+            addToast(DIALOG_TYPE_ERROR, (char *)textSelect(LABEL_BUSY));
         }
         #ifndef TFT70_V3_0
           else
